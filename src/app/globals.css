@@ -1,0 +1,7 @@
+@tailwind base; @tailwind components; @tailwind utilities;
+@layer base {
+  html, body { @apply bg-page text-white font-sans antialiased overflow-x-hidden; }
+  /* Raleway defaults to old-style numerals; financial figures need lining numerals. */
+  body { font-feature-settings: "lnum" 1; font-variant-numeric: lining-nums; }
+  :focus-visible { @apply outline-2 outline-offset-2 outline-soft; }
+}

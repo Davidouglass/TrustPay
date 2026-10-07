@@ -1,0 +1,333 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ───────── Enums ─────────
+enum Role {
+  CLIENT
+  FREELANCER
+  ADMIN
+}
+
+enum ProjectStatus {
+  DRAFT
+  PENDING_ACCEPTANCE
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum MilestoneStatus {
+  DRAFT
+  AWAITING_FUNDING
+  FUNDED
+  IN_PROGRESS
+  SUBMITTED
+  AWAITING_APPROVAL
+  APPROVED
+  PAYOUT_PENDING
+  PAID
+  DISPUTED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+enum PayoutStatus {
+  PENDING
+  PROCESSING
+  SUCCESS
+  FAILED
+}
+
+enum SubmissionDecision {
+  PENDING
+  APPROVED
+  CHANGES_REQUESTED
+}
+
+enum DisputeStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED_RELEASED
+  RESOLVED_REFUNDED
+  DISMISSED
+}
+
+enum WebhookEventStatus {
+  RECEIVED
+  PROCESSED
+  IGNORED
+  FAILED
+}
+
+enum NotificationType {
+  PROJECT_INVITED
+  PROJECT_ACCEPTED
+  MILESTONE_FUNDED
+  PAYMENT_FAILED
+  WORK_SUBMITTED
+  CHANGES_REQUESTED
+  MILESTONE_APPROVED
+  PAYOUT_INITIATED
+  PAYOUT_SUCCESS
+  PAYOUT_FAILED
+  DISPUTE_OPENED
+  DISPUTE_RESOLVED
+}
+
+// ───────── Core entities ─────────
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique // stored lowercased
+  name          String
+  passwordHash  String
+  role          Role
+  image         String?
+  // Freelancer payout destination (validated via Kora bank resolve later)
+  bankCode      String?
+  bankName      String?
+  accountNumber String?
+  accountName   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  clientProjects    Project[]        @relation("ProjectClient")
+  freelanceProjects Project[]        @relation("ProjectFreelancer")
+  payments          Payment[]
+  payouts           Payout[]
+  submissions       WorkSubmission[]
+  disputesRaised    Dispute[]        @relation("DisputeRaisedBy")
+  disputesResolved  Dispute[]        @relation("DisputeResolvedBy")
+  notifications     Notification[]
+  milestoneEvents   MilestoneEvent[]
+
+  @@index([role])
+}
+
+model Project {
+  id           String        @id @default(cuid())
+  title        String
+  description  String
+  clientId     String
+  freelancerId String
+  currency     String        @default("NGN")
+  status       ProjectStatus @default(DRAFT)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  client        User           @relation("ProjectClient", fields: [clientId], references: [id])
+  freelancer    User           @relation("ProjectFreelancer", fields: [freelancerId], references: [id])
+  milestones    Milestone[]
+  disputes      Dispute[]
+  notifications Notification[]
+
+  @@index([clientId, status])
+  @@index([freelancerId, status])
+  @@index([createdAt])
+}
+
+model Milestone {
+  id                  String           @id @default(cuid())
+  projectId           String
+  order               Int
+  title               String
+  description         String
+  amount              Int // kobo; immutable once FUNDED
+  dueDate             DateTime?
+  status              MilestoneStatus  @default(DRAFT)
+  statusBeforeDispute MilestoneStatus?
+  fundedAt            DateTime?
+  startedAt           DateTime?
+  submittedAt         DateTime?
+  approvedAt          DateTime?
+  paidAt              DateTime?
+  cancelledAt         DateTime?
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+
+  project       Project          @relation(fields: [projectId], references: [id])
+  payments      Payment[]
+  payouts       Payout[]
+  submissions   WorkSubmission[]
+  disputes      Dispute[]
+  events        MilestoneEvent[]
+  notifications Notification[]
+
+  @@unique([projectId, order])
+  @@index([projectId, status])
+  @@index([status])
+}
+
+// client -> TrustPay (Kora charge)
+model Payment {
+  id               String        @id @default(cuid())
+  milestoneId      String
+  payerId          String
+  reference        String        @unique // ours, e.g. TP-PAY-xxxx, sent to Kora
+  koraReference    String?       @unique // Kora's own transaction id, once known
+  amount           Int // kobo, copied from milestone at creation
+  amountPaid       Int? // as verified by Kora
+  currency         String        @default("NGN")
+  status           PaymentStatus @default(PENDING)
+  channel          String?
+  checkoutUrl      String?
+  failureReason    String?
+  flaggedForReview Boolean       @default(false) // e.g. underpaid / overpaid
+  flagReason       String?
+  verifyPayload    Json?
+  paidAt           DateTime?
+  refundedAt       DateTime?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  milestone Milestone @relation(fields: [milestoneId], references: [id])
+  payer     User      @relation(fields: [payerId], references: [id])
+  payouts   Payout[]
+
+  @@index([milestoneId, status])
+  @@index([payerId, createdAt])
+  @@index([status, createdAt])
+}
+
+// TrustPay -> freelancer (Kora disbursement)
+model Payout {
+  id            String       @id @default(cuid())
+  milestoneId   String
+  paymentId     String // the SUCCESS payment being released
+  recipientId   String
+  attempt       Int          @default(1)
+  reference     String       @unique // deterministic: TP-PO-<milestoneId>-<attempt>
+  koraReference String?      @unique
+  amount        Int // kobo actually sent
+  platformFee   Int          @default(0)
+  currency      String       @default("NGN")
+  status        PayoutStatus @default(PENDING)
+  bankCode      String // snapshot at approval time
+  accountNumber String
+  accountName   String
+  failureReason String?
+  verifyPayload Json?
+  claimedAt     DateTime?
+  completedAt   DateTime?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  milestone Milestone @relation(fields: [milestoneId], references: [id])
+  payment   Payment   @relation(fields: [paymentId], references: [id])
+  recipient User      @relation(fields: [recipientId], references: [id])
+
+  @@unique([milestoneId, attempt])
+  @@index([milestoneId, status])
+  @@index([recipientId, createdAt])
+  @@index([status, createdAt])
+}
+
+model WorkSubmission {
+  id           String             @id @default(cuid())
+  milestoneId  String
+  freelancerId String
+  version      Int
+  message      String
+  links        String[]
+  decision     SubmissionDecision @default(PENDING)
+  reviewNote   String?
+  reviewedAt   DateTime?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  milestone  Milestone @relation(fields: [milestoneId], references: [id])
+  freelancer User      @relation(fields: [freelancerId], references: [id])
+
+  @@unique([milestoneId, version])
+  @@index([freelancerId, createdAt])
+}
+
+model Dispute {
+  id             String        @id @default(cuid())
+  projectId      String
+  milestoneId    String
+  raisedById     String
+  reason         String
+  status         DisputeStatus @default(OPEN)
+  resolutionNote String?
+  resolvedById   String?
+  resolvedAt     DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  project    Project   @relation(fields: [projectId], references: [id])
+  milestone  Milestone @relation(fields: [milestoneId], references: [id])
+  raisedBy   User      @relation("DisputeRaisedBy", fields: [raisedById], references: [id])
+  resolvedBy User?     @relation("DisputeResolvedBy", fields: [resolvedById], references: [id])
+
+  @@index([milestoneId, status])
+  @@index([projectId])
+  @@index([status, createdAt])
+}
+
+model Notification {
+  id          String           @id @default(cuid())
+  userId      String
+  type        NotificationType
+  title       String
+  body        String
+  projectId   String?
+  milestoneId String?
+  dedupeKey   String?          @unique // e.g. "PAYOUT_SUCCESS:<payoutId>:<userId>"
+  readAt      DateTime?
+  createdAt   DateTime         @default(now())
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project   Project?   @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  milestone Milestone? @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
+
+  @@index([userId, readAt, createdAt])
+}
+
+// ───────── Supporting tables ─────────
+// Dedupe + audit of every Kora delivery. Webhooks never insert Payment/Payout rows.
+model WebhookEvent {
+  id             String             @id @default(cuid())
+  provider       String             @default("KORA")
+  dedupeKey      String // `${event}:${data.reference}`
+  event          String
+  reference      String
+  payload        Json
+  signatureValid Boolean
+  status         WebhookEventStatus @default(RECEIVED)
+  error          String?
+  receivedAt     DateTime           @default(now())
+  processedAt    DateTime?
+
+  @@unique([provider, dedupeKey])
+  @@index([reference])
+  @@index([status, receivedAt])
+}
+
+// State-change timeline
+model MilestoneEvent {
+  id          String           @id @default(cuid())
+  milestoneId String
+  from        MilestoneStatus?
+  to          MilestoneStatus
+  actorId     String? // null = system
+  note        String?
+  createdAt   DateTime         @default(now())
+
+  milestone Milestone @relation(fields: [milestoneId], references: [id])
+  actor     User?     @relation(fields: [actorId], references: [id])
+
+  @@index([milestoneId, createdAt])
+}
