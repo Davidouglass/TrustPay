@@ -1,15 +1,15 @@
 'use client';
 import { useState } from 'react';
+import Link from 'next/link';
 import { Avatar, Button, SegmentedTabs, StatusPill } from '@/components/ui/primitives';
 import { naira } from '@/lib/format';
-import { transactions, type Tx } from '@/lib/mock';
+import type { Tx } from '@/lib/types';
 
-const tone = { Released: 'success', Funded: 'info', 'Pending approval': 'warning', 'Payout failed': 'danger' } as const;
-const TABS = ['All', 'Funded', 'Released'] as const;
+const TABS = ['All', 'Payments', 'Payouts'] as const;
 
-export function Transactions() {
+export function Transactions({ rows: all }: { rows: Tx[] }) {
   const [tab, setTab] = useState<(typeof TABS)[number]>('All');
-  const rows = transactions.filter((t: Tx) => tab === 'All' || t.status === tab);
+  const rows = all.filter(t => tab === 'All' || t.kind === tab);
   return (
     <section>
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -30,10 +30,10 @@ export function Transactions() {
             {['Reference', 'Counterparty', 'Channel', 'Status', 'Amount', 'Date'].map(h => <th key={h} className="px-4 py-4 font-medium first:pl-6">{h}</th>)}</tr></thead>
           <tbody>{rows.map(t => (
             <tr key={t.ref} className="border-b border-line/40 last:border-0">
-              <td className="px-4 py-4 pl-6 text-ink2">{t.ref}</td>
+              <td className="px-4 py-4 pl-6"><Link href={`/transactions/${t.ref}`} className="text-soft hover:underline">{t.ref}</Link></td>
               <td className="px-4 py-4"><div className="flex items-center gap-3"><Avatar name={t.name} size={32} /><div className="min-w-0"><p className="truncate font-medium">{t.name}</p><p className="truncate text-xs text-ink2">{t.email}</p></div></div></td>
               <td className="px-4 py-4"><p>{t.method}</p><p className="text-xs text-ink2">{t.methodSub}</p></td>
-              <td className="px-4 py-4"><StatusPill tone={tone[t.status]}>{t.status}</StatusPill></td>
+              <td className="px-4 py-4"><StatusPill tone={t.tone}>{t.statusLabel}</StatusPill></td>
               <td className="px-4 py-4 font-semibold">{naira(t.amount)}</td>
               <td className="px-4 py-4 text-ink2">{t.date}</td>
             </tr>))}</tbody>
@@ -42,7 +42,7 @@ export function Transactions() {
       {/* <md: same data as cards, no horizontal scroll */}
       <ul className="mt-5 space-y-3 md:hidden">{rows.map(t => (
         <li key={t.ref} className="rounded-[20px] border border-line p-4">
-          <div className="flex items-center gap-3"><Avatar name={t.name} /><div className="min-w-0 flex-1"><p className="truncate font-medium">{t.name}</p><p className="truncate text-xs text-ink2">{t.ref}</p></div><StatusPill tone={tone[t.status]}>{t.status}</StatusPill></div>
+          <div className="flex items-center gap-3"><Avatar name={t.name} /><div className="min-w-0 flex-1"><p className="truncate font-medium">{t.name}</p><Link href={`/transactions/${t.ref}`} className="block truncate text-xs text-soft">{t.ref}</Link></div><StatusPill tone={t.tone}>{t.statusLabel}</StatusPill></div>
           <div className="mt-4 flex items-end justify-between"><div><p className="text-sm">{t.method}</p><p className="text-xs text-ink2">{t.methodSub} · {t.date}</p></div><p className="text-lg font-semibold">{naira(t.amount)}</p></div>
         </li>))}</ul>
     </section>

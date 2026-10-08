@@ -2,8 +2,9 @@ import { Button, StatusPill } from '@/components/ui/primitives';
 import { MILESTONE_UI, type Milestone } from '@/lib/projects-data';
 import { naira } from '@/lib/format';
 
-export function MilestoneCard({ m, index }: { m: Milestone; index: number }) {
+export function MilestoneCard({ m, index, action }: { m: Milestone; index: number; action?: string | null }) {
   const ui = MILESTONE_UI[m.state];
+  const label = action === undefined ? ui.action : action;
   return (
     <li className="rounded-[20px] border border-line p-4 sm:p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -14,8 +15,8 @@ export function MilestoneCard({ m, index }: { m: Milestone; index: number }) {
         <StatusPill tone={ui.tone}>{ui.label}</StatusPill>
       </div>
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-        <div><p className="text-xl font-semibold">{naira(m.amount)}</p><p className="text-xs text-ink2">Due {m.due}</p></div>
-        {ui.action && <Button type="button" variant={m.state === 'DISPUTED' ? 'outline' : 'primary'} className="w-full sm:w-auto">{ui.action}</Button>}
+        <div><p className="text-xl font-semibold">{naira(m.amount)}</p><p className="text-xs text-ink2">{m.due}</p></div>
+        {label && <Button type="button" variant={m.state === 'DISPUTED' ? 'outline' : 'primary'} className="w-full sm:w-auto">{label}</Button>}
       </div>
     </li>
   );

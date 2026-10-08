@@ -1,27 +1,24 @@
 import { Card, Avatar, Button, StatusPill } from '@/components/ui/primitives';
 import { naira } from '@/lib/format';
-import { stats, payouts } from '@/lib/mock';
 
 const Arrow = ({ up }: { up: boolean }) =>
   <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className={up ? '' : 'rotate-90'}><path d="M2 10 10 2M4 2h6v6" /></svg>;
 
-export function StatCards() {
+export function StatCards({ stats }: { stats: { label: string; value: number; plain?: boolean; note?: string }[] }) {
   return (
     <div className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-2 xl:grid-cols-4">
       {stats.map(s => (
         <Card key={s.label} className="p-5 sm:p-6">
           <p className="text-sm text-ink2">{s.label}</p>
           <p className="mt-4 truncate text-2xl font-semibold sm:text-[28px]">{s.plain ? s.value : naira(s.value)}</p>
-          <p className="mt-2 flex items-center gap-1.5 text-sm text-ink2">
-            <span className={`inline-flex items-center gap-1 font-semibold ${s.up ? 'text-delta' : 'text-danger'}`}><Arrow up={s.up} />{s.delta}%</span>vs last month
-          </p>
+          {s.note && <p className="mt-2 text-sm text-ink2">{s.note}</p>}
         </Card>
       ))}
     </div>
   );
 }
 
-export function RecentPayouts() {
+export function RecentPayouts({ payouts }: { payouts: { name: string; project: string; amount: number; when: string }[] }) {
   return (
     <Card className="p-5 sm:p-6">
       <div className="flex items-center justify-between">
@@ -42,8 +39,8 @@ export function RecentPayouts() {
 }
 
 /** Replaces the Storage card. Figures are demo data until wired to Payment/Payout rows. */
-export function ProtectedBalanceCard() {
-  const held = 2125988, awaiting = 640000, pct = Math.round((awaiting / held) * 100);
+export function ProtectedBalanceCard({ held, awaiting }: { held: number; awaiting: number }) {
+  const pct = held ? Math.round((awaiting / held) * 100) : 0;
   return (
     <Card className="p-5">
       <div className="flex items-center gap-2.5">

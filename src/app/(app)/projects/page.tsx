@@ -1,15 +1,19 @@
 import Link from 'next/link';
-import { AppShell } from '@/components/layout/AppShell';
-import { Card, Avatar, Button } from '@/components/ui/primitives';
-import { projects, projectTotal, projectReleased } from '@/lib/projects-data';
+import { Frame } from '@/components/layout/Frame';
+import { Card, Avatar } from '@/components/ui/primitives';
+import { projectTotal, projectReleased } from '@/lib/projects-data';
+import { getCurrentUser, getProjects } from '@/lib/data';
 import { naira } from '@/lib/format';
 
-export default function ProjectsPage() {
+export const dynamic = 'force-dynamic';
+
+export default async function ProjectsPage() {
+  const projects = await getProjects((await getCurrentUser()).id);
   return (
-    <AppShell title="Projects">
+    <Frame title="Projects">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-ink2">{projects.length} projects</p>
-        <Button type="button" className="w-full sm:w-auto">New project</Button>
+        <Link href="/projects/new" className="inline-flex h-11 w-full items-center justify-center rounded-btn bg-primary px-5 text-sm font-semibold text-white hover:brightness-110 sm:w-auto">New project</Link>
       </div>
       <ul className="grid gap-4 md:grid-cols-2">
         {projects.map(p => (
@@ -23,6 +27,6 @@ export default function ProjectsPage() {
           </Link></li>
         ))}
       </ul>
-    </AppShell>
+    </Frame>
   );
 }
