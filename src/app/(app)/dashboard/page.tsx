@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation';
 import { Frame } from '@/components/layout/Frame';
 import { StatCards, RecentPayouts } from '@/components/dashboard/widgets';
 import { PaymentChart } from '@/components/dashboard/PaymentChart';
@@ -7,7 +8,9 @@ import { getCurrentUser, getStats, getRecentPayouts, getTransactions } from '@/l
 export const dynamic = 'force-dynamic';
 
 export default async function DashboardPage() {
-  const { id } = await getCurrentUser();
+  const user = await getCurrentUser();
+  if (user.role === 'FREELANCER') redirect('/freelancer');
+  const { id } = user;
   const [stats, payouts, txs] = await Promise.all([getStats(id), getRecentPayouts(id), getTransactions(id)]);
   return (
     <Frame title="Dashboard">

@@ -1,16 +1,18 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Logo } from '@/components/ui/Logo';
 import { Avatar, IconButton } from '@/components/ui/primitives';
 import { ProtectedBalanceCard } from '@/components/dashboard/widgets';
+import { logoutAction } from '@/app/(auth)/actions';
 
 const NAV = [['Dashboard', '/dashboard'], ['Projects', '/projects'], ['Transactions', '/transactions'], ['Disputes', '/disputes'], ['Settings', '/settings']] as const;
 
 type Balance = { held: number; awaiting: number };
 function SidebarBody({ onNavigate, balance }: { onNavigate?: () => void; balance: Balance }) {
   const path = usePathname();
+  const [, start] = useTransition();
   return (
     <div className="flex h-full flex-col gap-4">
       <div className="flex-1 overflow-y-auto rounded-card bg-s1 p-5">
@@ -18,10 +20,11 @@ function SidebarBody({ onNavigate, balance }: { onNavigate?: () => void; balance
         <nav className="mt-6 rounded-[20px] bg-s2 p-3" aria-label="Main">
           <p className="px-3 pb-2 pt-1 text-xs font-semibold uppercase tracking-wide">Menu</p>
           {NAV.map(([label, href]) => {
-            const active = path === href;
+            const active = path === href || (href === '/dashboard' && path === '/freelancer');
             return <Link key={href} href={href} onClick={onNavigate} aria-current={active ? 'page' : undefined}
               className={`flex h-12 items-center rounded-btn px-3 text-[15px] transition ${active ? 'bg-s3 font-medium text-white' : 'text-ink2 hover:text-white'}`}>{label}</Link>;
           })}
+          <button type="button" onClick={() => start(() => { void logoutAction(); })} className="flex h-12 w-full items-center rounded-btn px-3 text-[15px] text-ink2 transition hover:text-white">Log out</button>
         </nav>
       </div>
       <ProtectedBalanceCard {...balance} />
@@ -29,7 +32,7 @@ function SidebarBody({ onNavigate, balance }: { onNavigate?: () => void; balance
   );
 }
 
-export function AppShell({ title, children, balance }: { title: string; children: React.ReactNode; balance: Balance }) {
+export function AppShell({ title, children, balance, user }: { title: string; children: React.ReactNode; balance: Balance; user: { name: string; image: string | null } }) {
   const [open, setOpen] = useState(false);
   useEffect(() => { const k = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false); addEventListener('keydown', k); return () => removeEventListener('keydown', k); }, []);
   return (
@@ -52,7 +55,7 @@ export function AppShell({ title, children, balance }: { title: string; children
             <input placeholder="Type to start search…" className="w-full bg-transparent text-sm text-white outline-none placeholder:text-ink2" />
           </label>
           <Link href="/notifications" aria-label="Notifications" className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-icon text-white"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 8 3 8H3s3-1 3-8M10 20a2 2 0 0 0 4 0" /></svg></Link>
-          <div className="hidden items-center gap-3 sm:flex"><Avatar name="David" src="/david.png" /><span className="text-sm font-semibold">David</span></div>
+          <div className="hidden items-center gap-3 sm:flex"><Avatar name={user.name} src={user.image ?? undefined} /><span className="text-sm font-semibold">{user.name.split(' ')[0]}</span></div>
         </header>
         <div className="mt-6 space-y-5 sm:mt-8">{children}</div>
       </main>

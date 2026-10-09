@@ -23,7 +23,8 @@ function Nav() {
       <Link href="/" aria-label="TrustPay home"><Logo /></Link>
       <nav aria-label="Main" className="hidden gap-8 text-sm md:flex">{links.map(([l, h]) => <a key={h} href={h} className="text-ink2 hover:text-white">{l}</a>)}</nav>
       <div className="flex items-center gap-3">
-        <Link href="/dashboard" className={`${cta} bg-primary text-white hover:brightness-110`}>Get Started</Link>
+        <Link href="/login" className="hidden text-sm text-ink2 hover:text-white sm:block">Log in</Link>
+        <Link href="/register" className={`${cta} bg-primary text-white hover:brightness-110`}>Get Started</Link>
         <details className="relative md:hidden">
           <summary aria-label="Menu" className="grid h-11 w-11 cursor-pointer list-none place-items-center rounded-full bg-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
@@ -48,7 +49,7 @@ export function Landing() {
           <h1 className="mx-auto mt-6 max-w-3xl text-[32px] font-semibold leading-tight sm:text-5xl">Get paid for the work. Pay for the work <span className="text-soft">you receive.</span></h1>
           <p className="mx-auto mt-5 max-w-xl text-ink2 sm:text-lg">TrustPay protects African freelancers and their clients by funding and releasing payment one milestone at a time.</p>
           <div className="mt-8 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center">
-            <Link href="/dashboard" className={`${cta} bg-white text-page hover:bg-white/90`}>Get Started</Link>
+            <Link href="/register" className={`${cta} bg-white text-page hover:bg-white/90`}>Get Started</Link>
             <a href="#how" className={`${cta} border border-line hover:bg-s2b`}>See how it works</a>
           </div>
         </section>
