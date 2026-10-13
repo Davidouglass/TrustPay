@@ -3,13 +3,16 @@ import bcrypt from 'bcryptjs';
 import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/db';
 import { startSession, endSession } from '@/lib/auth';
+import { authConfigured } from '@/lib/session';
 
 export type FormState = { error?: string } | undefined;
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const DUMMY_HASH = bcrypt.hashSync('not-a-real-password', 10); // keeps login timing similar when the email is unknown
+const NOT_CONFIGURED: FormState = { error: 'Server setup incomplete: add AUTH_SECRET (32+ characters) to .env and restart the dev server.' };
 const home = (role: string) => (role === 'FREELANCER' ? '/freelancer' : '/dashboard');
 
 export async function registerAction(fd: FormData): Promise<FormState> {
+  if (!authConfigured()) return NOT_CONFIGURED; // checked BEFORE creating the user, so no account is left half-created
   const name = String(fd.get('name') ?? '').trim();
   const email = String(fd.get('email') ?? '').trim().toLowerCase();
   const password = String(fd.get('password') ?? '');
@@ -27,6 +30,7 @@ export async function registerAction(fd: FormData): Promise<FormState> {
 }
 
 export async function loginAction(fd: FormData): Promise<FormState> {
+  if (!authConfigured()) return NOT_CONFIGURED;
   const email = String(fd.get('email') ?? '').trim().toLowerCase();
   const password = String(fd.get('password') ?? '');
   const user = await prisma.user.findUnique({ where: { email } });

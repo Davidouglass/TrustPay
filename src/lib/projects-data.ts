@@ -13,7 +13,7 @@ export const MILESTONE_UI: Record<MilestoneState, { label: string; tone: Tone; a
   DISPUTED: { label: 'Disputed', tone: 'danger', action: 'View dispute' },
   CANCELLED: { label: 'Cancelled', tone: 'danger' },
 };
-export type Milestone = { id: string; title: string; description: string; amount: number; due: string; state: MilestoneState };
-export type Project = { id: string; title: string; freelancer: string; status: string; milestones: Milestone[] };
+export type Milestone = { submission?: { version: number; message: string; links: string[]; note: string | null }; id: string; title: string; description: string; amount: number; due: string; state: MilestoneState };
+export type Project = { id: string; title: string; freelancer: string; freelancerId: string; statusCode: string; status: string; milestones: Milestone[] };
 export const projectTotal = (p: Project) => p.milestones.reduce((s, x) => s + x.amount, 0);
 export const projectReleased = (p: Project) => p.milestones.filter(x => x.state === 'PAID').reduce((s, x) => s + x.amount, 0);

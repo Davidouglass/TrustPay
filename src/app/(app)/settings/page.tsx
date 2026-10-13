@@ -1,5 +1,6 @@
 import { Frame } from '@/components/layout/Frame';
 import { Card, Avatar } from '@/components/ui/primitives';
+import { BankDetailsForm } from '@/components/settings/BankDetailsForm';
 import { getCurrentUser } from '@/lib/data';
 
 export const dynamic = 'force-dynamic';
@@ -17,11 +18,11 @@ export default async function SettingsPage() {
       </Card>
       <Card className="p-5 sm:p-6">
         <h2 className="text-lg font-semibold">Payout account</h2>
-        {u.accountNumber ? (
-          <dl className="mt-3"><Row label="Bank" value={u.bankName ?? u.bankCode ?? ''} /><Row label="Account number" value={`******${u.accountNumber.slice(-4)}`} /><Row label="Account name" value={u.accountName ?? ''} /></dl>
-        ) : <p className="mt-2 text-sm text-ink2">Clients fund milestones and don’t need a payout account. Freelancers add their bank details here to receive payments.</p>}
+        {u.role === 'FREELANCER'
+          ? <><p className="mt-2 text-sm text-ink2">{u.accountNumber ? `Saved: ${u.bankName ?? u.bankCode}, account ending ${u.accountNumber.slice(-4)}.` : 'Add your Nigerian bank account. You need it before you can accept a project.'}</p>
+              <BankDetailsForm initial={{ bankCode: u.bankCode ?? '', accountNumber: u.accountNumber ?? '', accountName: u.accountName ?? '' }} /></>
+          : <p className="mt-2 text-sm text-ink2">Clients fund milestones and don’t need a payout account.</p>}
       </Card>
-      <p className="text-xs text-ink2">Editing profile and bank details arrives with authentication.</p>
     </Frame>
   );
 }

@@ -6,4 +6,4 @@ export async function middleware(req: NextRequest) {
   if (!(await verifySession(req.cookies.get(COOKIE)?.value))) return NextResponse.redirect(new URL('/login', req.url));
   return NextResponse.next();
 }
-export const config = { matcher: ['/dashboard/:path*', '/projects/:path*', '/transactions/:path*', '/disputes/:path*', '/settings/:path*', '/notifications/:path*', '/freelancer/:path*'] };
+export const config = { matcher: ['/dashboard/:path*', '/projects/:path*', '/transactions/:path*', '/disputes/:path*', '/settings/:path*', '/notifications/:path*', '/freelancer/:path*', '/payments/:path*'] };

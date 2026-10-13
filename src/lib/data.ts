@@ -49,18 +49,19 @@ export async function getTransactions(clientId: string): Promise<Tx[]> {
   ]);
   const rows = [
     ...payments.map(p => ({ at: p.createdAt, tx: { ref: p.reference, kind: 'Payments' as const, name: p.milestone.project.freelancer.name, email: p.milestone.project.freelancer.email,
-      method: p.channel === 'card' ? 'Card payment' : 'Bank transfer', methodSub: p.milestone.title, statusLabel: payTone[p.status][0], tone: payTone[p.status][1], amount: naira(p.amount), date: fmtDate(p.createdAt) } })),
+      method: p.channel === 'DEV_SIMULATOR' ? 'Simulated (no real money)' : p.channel === 'card' ? 'Card payment' : 'Bank transfer', methodSub: p.milestone.title, statusLabel: p.channel === 'DEV_SIMULATOR' ? `${payTone[p.status][0]} (simulated)` : payTone[p.status][0], tone: payTone[p.status][1], amount: naira(p.amount), date: fmtDate(p.createdAt) } })),
     ...payouts.map(p => ({ at: p.createdAt, tx: { ref: p.reference, kind: 'Payouts' as const, name: p.recipient.name, email: p.recipient.email,
       method: `Bank ****${p.accountNumber.slice(-4)}`, methodSub: 'Payout', statusLabel: outTone[p.status][0], tone: outTone[p.status][1], amount: naira(p.amount), date: fmtDate(p.createdAt) } })),
   ];
   return rows.sort((a, b) => b.at.getTime() - a.at.getTime()).map(r => r.tx);
 }
 
-const include = { freelancer: true, milestones: { orderBy: { order: 'asc' } } } satisfies Prisma.ProjectInclude;
+const include = { freelancer: true, milestones: { orderBy: { order: 'asc' }, include: { submissions: { orderBy: { version: 'desc' }, take: 1 } } } } satisfies Prisma.ProjectInclude;
 type Row = Prisma.ProjectGetPayload<{ include: typeof include }>;
 const PROJECT_STATUS: Record<string, string> = { DRAFT: 'Draft', PENDING_ACCEPTANCE: 'Pending acceptance', ACTIVE: 'Active', COMPLETED: 'Completed', CANCELLED: 'Cancelled' };
-const toProject = (p: Row): Project => ({ id: p.id, title: p.title, freelancer: p.freelancer.name, status: PROJECT_STATUS[p.status],
-  milestones: p.milestones.map(m => ({ id: m.id, title: m.title, description: m.description, amount: naira(m.amount), due: m.dueDate ? `Due ${fmtDate(m.dueDate)}` : 'No due date', state: m.status as MilestoneState })) });
+const toProject = (p: Row): Project => ({ id: p.id, title: p.title, freelancer: p.freelancer.name, freelancerId: p.freelancerId, statusCode: p.status, status: PROJECT_STATUS[p.status],
+  milestones: p.milestones.map(m => ({ id: m.id, title: m.title, description: m.description, amount: naira(m.amount), due: m.dueDate ? `Due ${fmtDate(m.dueDate)}` : 'No due date', state: m.status as MilestoneState,
+    submission: m.submissions[0] ? { version: m.submissions[0].version, message: m.submissions[0].message, links: m.submissions[0].links, note: m.submissions[0].reviewNote } : undefined })) });
 export const getProjects = async (clientId: string) => (await prisma.project.findMany({ where: mine(clientId), include, orderBy: { createdAt: 'desc' } })).map(toProject);
 export const getProject = async (id: string, clientId: string) => { const p = await prisma.project.findFirst({ where: { id, ...mine(clientId) }, include }); return p ? toProject(p) : null; };
 
@@ -73,7 +74,8 @@ export async function getDisputes(clientId: string) {
 export async function getTransaction(ref: string, clientId: string) {
   const pay = await prisma.payment.findFirst({ where: { reference: ref, OR: [{ payerId: clientId }, { milestone: { project: { freelancerId: clientId } } }] }, include: { milestone: { include: { project: { include: { freelancer: true } } } } } });
   if (pay) {
-    const [label, tone] = payTone[pay.status];
+    const [base, tone] = payTone[pay.status];
+    const label = pay.channel === 'DEV_SIMULATOR' ? `${base} (simulated)` : base;
     return { ref, kind: 'Payment', label, tone, amount: naira(pay.amount), koraRef: pay.koraReference, milestone: pay.milestone.title, projectId: pay.milestone.projectId, project: pay.milestone.project.title,
       party: pay.milestone.project.freelancer.name, created: fmtDate(pay.createdAt), settled: pay.paidAt ? fmtDate(pay.paidAt) : null, note: pay.failureReason };
   }

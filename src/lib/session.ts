@@ -24,3 +24,6 @@ export async function verifySession(token?: string): Promise<Session | null> {
     return s.exp > Date.now() ? s : null;
   } catch { return null; }
 }
+
+/** True when AUTH_SECRET is set and long enough to sign sessions. */
+export const authConfigured = () => (process.env.AUTH_SECRET?.length ?? 0) >= 32;
